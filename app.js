@@ -6,6 +6,14 @@ let correctAnswersCount = 0;
 let wrongAnswersCount = 0;
 let currentMode = null;  // 'training' или 'test'
 let inactivityTimer = null;  // Таймер бездействия
+let currentSessionId = null;  // ID текущей сессии на backend
+let userUuid = null;  // UUID пользователя
+let topWrongQuestions = [];  // Вопросы с ошибками
+
+// Backend API URL
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000/api'
+    : '/api';  // В продакшне API на том же домене
 
 // DOM элементы
 const startScreen = document.getElementById('startScreen');
@@ -30,6 +38,90 @@ const questionImageContainer = document.getElementById('questionImageContainer')
 const questionImage = document.getElementById('questionImage');
 const answersContainer = document.getElementById('answersContainer');
 const feedback = document.getElementById('feedback');
+
+// Функции для работы с UUID пользователя
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+function getUserUUID() {
+    let uuid = localStorage.getItem('userUUID');
+    if (!uuid) {
+        uuid = generateUUID();
+        localStorage.setItem('userUUID', uuid);
+        console.log('✅ Создан новый UUID пользователя:', uuid);
+    }
+    return uuid;
+}
+
+// Функции для работы с backend API
+async function apiRequest(endpoint, method = 'GET', data = null) {
+    try {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        };
+
+        if (data && method !== 'GET') {
+            options.body = JSON.stringify(data);
+        }
+
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.warn('⚠️ Ошибка API запроса:', error.message);
+        // Приложение продолжает работать без backend
+        return null;
+    }
+}
+
+async function startBackendSession(mode) {
+    const result = await apiRequest('/session-start', 'POST', {
+        userUuid: userUuid,
+        mode: mode
+    });
+
+    if (result && result.sessionId) {
+        currentSessionId = result.sessionId;
+        console.log('✅ Сессия создана на backend:', currentSessionId);
+    }
+}
+
+async function logBackendAnswer(questionId, isCorrect) {
+    if (!currentSessionId) return;
+
+    await apiRequest('/answer', 'POST', {
+        sessionId: currentSessionId,
+        questionId: questionId,
+        isCorrect: isCorrect
+    });
+}
+
+async function endBackendSession() {
+    if (!currentSessionId) return;
+
+    await apiRequest('/session-end', 'POST', {
+        sessionId: currentSessionId,
+        correctAnswers: correctAnswersCount,
+        wrongAnswers: wrongAnswersCount,
+        topWrongQuestions: topWrongQuestions
+    });
+
+    console.log('✅ Сессия завершена на backend');
+    currentSessionId = null;
+    topWrongQuestions = [];
+}
 
 // Функции для работы с localStorage
 function saveState() {
@@ -366,6 +458,11 @@ function checkAnswer(answerElement, question) {
         feedback.classList.add('wrong');
         wrongAnswersCount++;
 
+        // Добавляем вопрос в список неправильных ответов
+        topWrongQuestions.push({
+            question_id: question.question_number
+        });
+
         // Подсвечиваем правильный ответ
         allAnswers.forEach(el => {
             if (el.dataset.flag === 'true') {
@@ -373,6 +470,9 @@ function checkAnswer(answerElement, question) {
             }
         });
     }
+
+    // Логируем ответ на backend
+    logBackendAnswer(question.question_number, isCorrect);
 
     // Активируем кнопку "Следующий вопрос"
     nextBtn.disabled = false;
@@ -389,7 +489,7 @@ function nextQuestion() {
 }
 
 // Показать результаты
-function showResults() {
+async function showResults() {
     const answeredQuestions = correctAnswersCount + wrongAnswersCount;
     const percentage = answeredQuestions > 0 ? Math.round((correctAnswersCount / answeredQuestions) * 100) : 0;
 
@@ -398,14 +498,17 @@ function showResults() {
     document.getElementById('scorePercentage').textContent = percentage + '%';
     document.getElementById('answeredQuestions').textContent = answeredQuestions;
 
-  // Останавливаем таймер бездействия
+    // Останавливаем таймер бездействия
     stopInactivityTimer();
+
+    // Отправляем результаты на backend
+    await endBackendSession();
 
     showScreen(resultScreen);
 }
 
 // Начать режим обучения
-function startTraining() {
+async function startTraining() {
     currentMode = 'training';
 
     // Проверяем, нужно ли перемешивать вопросы
@@ -419,18 +522,28 @@ function startTraining() {
     currentQuestionIndex = 0;
     correctAnswersCount = 0;
     wrongAnswersCount = 0;
+    topWrongQuestions = [];
+
+    // Создаем сессию на backend
+    await startBackendSession('training');
+
     saveState();
     showScreen(questionScreen);
     displayQuestion();
 }
 
 // Начать режим теста
-function startTest() {
+async function startTest() {
     currentMode = 'test';
     questions = getRandomQuestions(45);  // 45 случайных вопросов
     currentQuestionIndex = 0;
     correctAnswersCount = 0;
     wrongAnswersCount = 0;
+    topWrongQuestions = [];
+
+    // Создаем сессию на backend
+    await startBackendSession('test');
+
     saveState();
     showScreen(questionScreen);
     displayQuestion();
@@ -482,6 +595,9 @@ document.getElementById('continueBtn').addEventListener('click', hideInactivityM
 
 // Инициализация
 async function initApp() {
+    // Получаем или создаем UUID пользователя
+    userUuid = getUserUUID();
+
     // Загружаем вопросы
     await loadQuestions();
 
