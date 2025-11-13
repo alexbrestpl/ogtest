@@ -119,8 +119,8 @@ function logAnswer(sessionId, questionId, isCorrect) {
 // Обновить статистику по вопросу
 function updateQuestionStats(questionId, isCorrect) {
     const stmt = db.prepare(`
-        INSERT INTO questions_stats (question_id, total_shown, total_wrong)
-        VALUES (?, 1, ?)
+        INSERT INTO questions_stats (question_id, total_shown, total_wrong, error_rate)
+        VALUES (?, 1, ?, CAST(? AS REAL) / 1 * 100)
         ON CONFLICT(question_id) DO UPDATE SET
             total_shown = total_shown + 1,
             total_wrong = total_wrong + ?,
@@ -128,7 +128,7 @@ function updateQuestionStats(questionId, isCorrect) {
     `);
 
     const wrongIncrement = isCorrect ? 0 : 1;
-    stmt.run(questionId, wrongIncrement, wrongIncrement, wrongIncrement);
+    stmt.run(questionId, wrongIncrement, wrongIncrement, wrongIncrement, wrongIncrement);
 }
 
 // Получить статистику сессии
