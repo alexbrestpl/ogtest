@@ -17,6 +17,25 @@
   - Отправка результатов в Telegram
   - Аналитика по сложным вопросам
 
+## ⚠️ Безопасность
+
+**ВАЖНО!** При развертывании на VPS:
+
+1. **Файл .env содержит секретные данные** (Telegram токен)
+2. **НИКОГДА не коммитьте .env в Git** (уже в .gitignore ✅)
+3. **Веб-сервер ОБЯЗАТЕЛЬНО должен блокировать доступ к .env**
+   - **Nginx**: См. конфигурацию ниже с правилами `deny all`
+   - **Apache**: Файл `.htaccess` уже включен в репозиторий ✅
+   - Без этого `.env` будет доступен по URL `https://domain/.env`
+4. **Проверьте после деплоя**:
+   ```bash
+   curl https://yourdomain/.env
+   # Должно вернуть: 404 Not Found или 403 Forbidden
+
+   curl https://yourdomain/.git/config
+   # Должно вернуть: 404 Not Found или 403 Forbidden
+   ```
+
 ## Структура проекта
 
 ```
@@ -33,7 +52,9 @@ ogtest/
 │   ├── package.json      # Зависимости Node.js
 │   └── statistics.db     # База данных (создается автоматически)
 ├── .env                  # Конфигурация (не в Git)
-└── .env.example          # Пример конфигурации
+├── .env.example          # Пример конфигурации
+├── .htaccess             # Защита для Apache (блокирует .env)
+└── .gitignore            # Игнорируемые файлы
 ```
 
 ## Установка и запуск
@@ -179,6 +200,18 @@ nano ../.env
 server {
     listen 80;
     server_name test.domain.com;
+
+    # SECURITY: Блокировка доступа к .env и другим dotfiles
+    location ~ /\. {
+        deny all;
+        return 404;
+    }
+
+    # SECURITY: Дополнительная защита для критичных файлов
+    location ~* ^/(\.env|\.git|node_modules|backend/\.env|backend/node_modules) {
+        deny all;
+        return 404;
+    }
 
     # Frontend (статика)
     location / {

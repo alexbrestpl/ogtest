@@ -1,0 +1,27 @@
+# SECURITY: Block access to .env and other sensitive files
+# This file protects the application when using Apache web server
+
+# Deny access to .env file
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Deny access to all dotfiles and dotfolders
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Deny access to backend directory (should be served by Node.js, not Apache)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^backend/ - [F,L]
+    RewriteRule ^node_modules/ - [F,L]
+</IfModule>
+
+# Additional protection
+<FilesMatch "\.(env|git|gitignore|htaccess|db|sqlite|sqlite3)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
