@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: './.env' });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -31,7 +31,7 @@ app.use(cors({
 }));
 
 // Раздача статических файлов (frontend)
-app.use(express.static(path.join(__dirname, '..')));
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // API эндпоинты
 

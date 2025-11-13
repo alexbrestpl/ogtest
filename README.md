@@ -40,21 +40,23 @@
 
 ```
 ogtest/
-├── index.html            # Frontend - главная страница
-├── app.js                # Frontend - логика приложения
-├── style.css             # Frontend - стили
-├── questions_data.json   # База вопросов
-├── img/                  # Изображения к вопросам
+├── frontend/             # Frontend приложение
+│   ├── index.html        # Главная страница
+│   ├── app.js            # Логика приложения
+│   ├── style.css         # Стили
+│   ├── questions_data.json  # База вопросов
+│   └── img/              # Изображения к вопросам
 ├── backend/              # Backend API
 │   ├── server.js         # Express сервер
 │   ├── database.js       # Работа с SQLite
 │   ├── telegram.js       # Telegram интеграция
 │   ├── package.json      # Зависимости Node.js
-│   └── statistics.db     # База данных (создается автоматически)
-├── .env                  # Конфигурация (не в Git)
-├── .env.example          # Пример конфигурации
-├── .htaccess             # Защита для Apache (блокирует .env)
-└── .gitignore            # Игнорируемые файлы
+│   ├── statistics.db     # База данных (создается автоматически)
+│   ├── .env              # Конфигурация (не в Git)
+│   ├── .env.example      # Пример конфигурации
+│   └── .htaccess         # Защита для Apache (блокирует .env)
+├── .gitignore            # Игнорируемые файлы
+└── README.md             # Документация
 ```
 
 ## Установка и запуск
@@ -84,9 +86,10 @@ npm install
    - Напишите боту [@userinfobot](https://t.me/userinfobot)
    - Скопируйте ваш ID
 
-3. Создайте файл `.env` в корне проекта:
+3. Создайте файл `.env` в папке `backend`:
 
 ```bash
+cd backend
 cp .env.example .env
 ```
 
@@ -190,8 +193,8 @@ npm install --production
 
 2. **Настройка .env**:
 ```bash
-cp ../.env.example ../.env
-nano ../.env
+cp .env.example .env
+nano .env
 # Укажите продакшн настройки
 ```
 
@@ -215,7 +218,7 @@ server {
 
     # Frontend (статика)
     location / {
-        root /var/www/ogtest;
+        root /var/www/ogtest/frontend;
         index index.html;
         try_files $uri $uri/ =404;
     }
