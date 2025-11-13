@@ -340,7 +340,21 @@ function hideInactivityModal() {
 // Пропустить вопрос
 function skipQuestion() {
     hideInactivityModal();
+
+    // Получаем текущий вопрос
+    const question = questions[currentQuestionIndex];
+
+    // Считаем пропуск как неправильный ответ
     wrongAnswersCount++;
+
+    // Добавляем вопрос в список неправильных ответов
+    topWrongQuestions.push({
+        question_id: question.question_number
+    });
+
+    // Логируем пропуск на backend как неправильный ответ
+    logBackendAnswer(question.question_number, false);
+
     saveState();
     nextQuestion();
 }
