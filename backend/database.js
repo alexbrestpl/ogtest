@@ -124,11 +124,11 @@ function updateQuestionStats(questionId, isCorrect) {
         ON CONFLICT(question_id) DO UPDATE SET
             total_shown = total_shown + 1,
             total_wrong = total_wrong + ?,
-            error_rate = CAST(total_wrong AS REAL) / total_shown * 100
+            error_rate = CAST(total_wrong + ? AS REAL) / (total_shown + 1) * 100
     `);
 
     const wrongIncrement = isCorrect ? 0 : 1;
-    stmt.run(questionId, wrongIncrement, wrongIncrement);
+    stmt.run(questionId, wrongIncrement, wrongIncrement, wrongIncrement);
 }
 
 // Получить статистику сессии
