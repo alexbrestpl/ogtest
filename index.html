@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Небезопасные грузы</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="title">
+                <h1 id="headerTitle" style="cursor: pointer;">🚆 Небезопасные грузы</h1>
+                <span>&#129762; Без регистрации и СМС</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Вопрос 0 из 0</div>
+        </header>
+
+        <main id="mainContent">
+            <div id="startScreen" class="screen">
+                <h2>Добро пожаловать!</h2>
+                <p>Всего вопросов в базе: <span id="totalQuestions">0</span></p>
+
+                <div class="mode-selection">
+                    <div class="mode-card">
+                        <h3>Режим обучения</h3>
+                        <p>Все вопросы</p>
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="shuffleCheckbox">
+                            <span class="checkmark"></span>
+                            <span class="checkbox-label">Перемешать вопросы</span>
+                        </label>
+                        <button id="trainingBtn" class="btn btn-primary">Начать обучение</button>
+                    </div>
+
+                    <div class="mode-card">
+                        <h3>Режим теста</h3>
+                        <p>45 случайных вопросов</p>
+                        <button id="testBtn" class="btn btn-primary">Начать тест</button>
+                    </div>
+                </div>
+                <p class="note">Только для участников нашей группы. <br>Делал на коленке - прошу сильно не пинать
+                    &#128540;</p>
+                <div class="legal-link">
+                    <button id="infoBtn" class="btn btn-link">Правовая информация</button>
+                </div>
+            </div>
+
+            <div id="questionScreen" class="screen hidden">
+                <div class="question-card">
+                    <div class="question-header">
+                        <span class="question-number">Вопрос <span id="currentQuestionNum">1</span></span>
+                        <button id="exitBtn" class="btn btn-secondary">Закончить пытку!</button>
+                    </div>
+
+                    <div class="question-image" id="questionImageContainer">
+                        <img id="questionImage" src="" alt="Изображение к вопросу">
+                    </div>
+
+                    <div class="question-text" id="questionText"></div>
+
+                    <div class="answers" id="answersContainer"></div>
+
+                    <div class="question-footer">
+                        <div class="feedback" id="feedback"></div>
+                        <button id="nextBtn" class="btn btn-primary" disabled>Следующий вопрос</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="resultScreen" class="screen hidden">
+                <div class="result-card">
+                    <h2>Результаты теста</h2>
+                    <div class="result-stats">
+                        <div class="stat-item">
+                            <div class="stat-value" id="answeredQuestions">0</div>
+                            <div class="stat-label">Пройдено вопросов</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="correctAnswers">0</div>
+                            <div class="stat-label">Правильных ответов</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="wrongAnswers">0</div>
+                            <div class="stat-label">Неправильных ответов</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="scorePercentage">0%</div>
+                            <div class="stat-label">Процент правильных</div>
+                        </div>
+                    </div>
+                    <div class="result-buttons">
+                        <button id="restartBtn" class="btn btn-primary">Пройти заново</button>
+                        <button id="homeBtn" class="btn btn-secondary">На главную</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="infoScreen" class="screen hidden">
+                <div class="info-card">
+                    <h2>О приложении</h2>
+                    <div class="info-content">
+                        <h3>🧾 Отказ от ответственности</h3>
+
+                        <h4>1. Некоммерческий характер проекта</h4>
+                        <p>Данный сайт создан исключительно для ознакомительных и учебных целей. Проект не является
+                            коммерческим, не предназначен для получения прибыли и доступен ограниченной группе
+                            пользователей до <strong>19 ноября 2025 года</strong>.</p>
+
+                        <h4>2. Источник материалов</h4>
+                        <p>Часть материалов (включая тесты, вопросы и ответы) получена из открытых источников сети
+                            Интернет. Все права на исходные материалы принадлежат их законным владельцам.</p>
+                        <p>Если вы являетесь правообладателем и считаете, что использование материала нарушает ваши
+                            права, пожалуйста, свяжитесь с администратором сайта — соответствующий контент будет удалён
+                            по вашему запросу.</p>
+
+                        <h4>3. Отсутствие гарантий</h4>
+                        <p>Администрация сайта не гарантирует точность, полноту или актуальность размещённых материалов.
+                            Вся информация предоставляется «как есть» без каких-либо гарантий.</p>
+
+                        <h4>4. Ответственность пользователей</h4>
+                        <p>Пользователи сайта самостоятельно несут ответственность за использование размещённых
+                            материалов. Администрация не несёт ответственности за любые возможные последствия, связанные
+                            с использованием информации, размещённой на сайте.</p>
+
+                        <h4>5. Временное использование</h4>
+                        <p>Сайт функционирует временно — до <strong>19.11.2025</strong>. После указанной даты доступ к
+                            материалам будет прекращён.</p>
+
+                        <div class="contact-section">
+                            <p>По всем вопросам обращайтесь:</p>
+                            <a href="https://t.me/brest_by" target="_blank" class="telegram-link">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" alt="Telegram" class="telegram-icon">
+                                <span>brest_by</span>
+                            </a>
+                        </div>
+                    </div>
+                    <button id="backToHomeBtn" class="btn btn-primary">На главную</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальное окно бездействия -->
+    <div id="inactivityModal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="modalTitle">Нужна помощь?</h3>
+            <p id="modalText">Хотите пропустить вопрос?</p>
+            <div id="hintText" class="hint-text" style="display: none;"></div>
+            <div class="modal-buttons">
+                <button id="skipBtn" class="btn btn-primary">Пропустить вопрос</button>
+                <button id="continueBtn" class="btn btn-secondary">Продолжить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
