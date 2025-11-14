@@ -14,15 +14,16 @@ app.use(express.json());
 // CORS настройки
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const allowedOrigins = isDevelopment
-    ? ['http://localhost:8080', 'http://127.0.0.1:8080', 'http://localhost:5500']
+    ? ['http://localhost:3000', 'http://localhost:8080', 'http://127.0.0.1:8080', 'http://127.0.0.1:3000', 'http://localhost:5500']
     : process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Разрешаем запросы без origin (например, мобильные приложения, Postman)
+        // Разрешаем запросы без origin (например, мобильные приложения, Postman, same-origin)
         if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.warn('⚠️ CORS blocked origin:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
