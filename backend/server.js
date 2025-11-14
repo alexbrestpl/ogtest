@@ -35,7 +35,7 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 
 // API эндпоинты
 
-// POST /api/session-start - начать новую сессию
+// POST /api/session-start - начать новую сессию (возвращает sessionToken, НЕ возвращает вопросы)
 app.post('/api/session-start', (req, res) => {
     try {
         const { userUuid, mode } = req.body;
@@ -48,11 +48,13 @@ app.post('/api/session-start', (req, res) => {
             return res.status(400).json({ error: 'mode должен быть training или test' });
         }
 
-        const sessionId = db.createSession(userUuid, mode);
+        const sessionData = db.createSession(userUuid, mode);
 
         res.json({
             success: true,
-            sessionId: sessionId
+            sessionId: sessionData.sessionId,
+            sessionToken: sessionData.sessionToken,
+            totalQuestions: sessionData.totalQuestions
         });
     } catch (error) {
         console.error('Ошибка создания сессии:', error);
@@ -60,20 +62,84 @@ app.post('/api/session-start', (req, res) => {
     }
 });
 
-// POST /api/answer - записать ответ на вопрос
-app.post('/api/answer', (req, res) => {
+// GET /api/session/:id/next - получить следующий вопрос (по одному)
+app.get('/api/session/:id/next', (req, res) => {
     try {
-        const { sessionId, questionId, isCorrect } = req.body;
+        const sessionId = parseInt(req.params.id);
+        const sessionToken = req.headers['x-session-token'];
 
-        if (!sessionId || !questionId || isCorrect === undefined) {
-            return res.status(400).json({ error: 'sessionId, questionId и isCorrect обязательны' });
+        if (!sessionToken) {
+            return res.status(401).json({ error: 'Отсутствует токен сессии' });
         }
 
-        db.logAnswer(sessionId, questionId, isCorrect);
+        const result = db.getNextQuestion(sessionId, sessionToken);
+
+        if (!result) {
+            return res.json({ completed: true });
+        }
+
+        res.json({
+            success: true,
+            questionIndex: result.questionIndex,
+            totalQuestions: result.totalQuestions,
+            question: result.question
+        });
+    } catch (error) {
+        console.error('Ошибка получения вопроса:', error);
+        if (error.message.includes('Недействительная') || error.message.includes('завершена')) {
+            return res.status(403).json({ error: error.message });
+        }
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
+});
+
+// POST /api/session/:id/submit-answer - отправить ответ и получить результат
+app.post('/api/session/:id/submit-answer', (req, res) => {
+    try {
+        const sessionId = parseInt(req.params.id);
+        const sessionToken = req.headers['x-session-token'];
+        const { questionNumber, answerId } = req.body;
+
+        if (!sessionToken) {
+            return res.status(401).json({ error: 'Отсутствует токен сессии' });
+        }
+
+        if (!questionNumber || !answerId) {
+            return res.status(400).json({ error: 'questionNumber и answerId обязательны' });
+        }
+
+        const result = db.submitAnswer(sessionId, sessionToken, questionNumber, answerId);
+
+        res.json({
+            success: true,
+            isCorrect: result.isCorrect,
+            correctAnswerId: result.correctAnswerId,
+            correctAnswerText: result.correctAnswerText
+        });
+    } catch (error) {
+        console.error('Ошибка проверки ответа:', error);
+        if (error.message.includes('Недействительная') || error.message.includes('завершена')) {
+            return res.status(403).json({ error: error.message });
+        }
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
+});
+
+// POST /api/session/:id/focus-switch - логировать смену фокуса/вкладки
+app.post('/api/session/:id/focus-switch', (req, res) => {
+    try {
+        const sessionId = parseInt(req.params.id);
+        const sessionToken = req.headers['x-session-token'];
+
+        if (!sessionToken) {
+            return res.status(401).json({ error: 'Отсутствует токен сессии' });
+        }
+
+        db.logFocusSwitch(sessionId, sessionToken);
 
         res.json({ success: true });
     } catch (error) {
-        console.error('Ошибка записи ответа:', error);
+        console.error('Ошибка логирования смены фокуса:', error);
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });

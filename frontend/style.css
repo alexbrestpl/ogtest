@@ -650,3 +650,175 @@ main {
         font-size: 14px;
     }
 }
+
+/* ============================================
+   ЗАЩИТА ОТ ЧИТЕРСТВА
+   ============================================ */
+
+/* Блокировка выделения текста */
+body {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Водяной знак с UUID */
+.security-watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 120px;
+    font-weight: bold;
+    color: rgba(0, 0, 0, 0.03);
+    pointer-events: none;
+    z-index: 9998;
+    white-space: nowrap;
+}
+
+/* Предупреждение о смене фокуса */
+.focus-warning {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #ff9800 0%, #ff5722 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(255, 87, 34, 0.3);
+    z-index: 9999;
+    min-width: 300px;
+    animation: slideInRight 0.5s ease-out, pulse 2s infinite;
+}
+
+.focus-warning-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.focus-warning .warning-icon {
+    font-size: 32px;
+    text-align: center;
+}
+
+.focus-warning p {
+    margin: 0;
+    font-size: 14px;
+    text-align: center;
+}
+
+.focus-warning .warning-count {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.focus-warning .warning-note {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-top: 8px;
+}
+
+/* Предупреждение о DevTools */
+.devtools-warning {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #d32f2f 0%, #c62828 100%);
+    color: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 16px 48px rgba(211, 47, 47, 0.5);
+    z-index: 10000;
+    min-width: 400px;
+    text-align: center;
+    animation: shake 0.5s, pulse 2s infinite;
+}
+
+.devtools-warning-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.devtools-warning .warning-icon {
+    font-size: 64px;
+    animation: pulse 1s infinite;
+}
+
+.devtools-warning h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.devtools-warning p {
+    margin: 0;
+    font-size: 16px;
+}
+
+.devtools-warning .warning-note {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    padding-top: 16px;
+}
+
+/* Анимации */
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+@keyframes shake {
+    0%, 100% {
+        transform: translate(-50%, -50%) translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translate(-50%, -50%) translateX(-10px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translate(-50%, -50%) translateX(10px);
+    }
+}
+
+/* Мобильные устройства */
+@media (max-width: 768px) {
+    .security-watermark {
+        font-size: 60px;
+    }
+
+    .focus-warning {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        min-width: unset;
+    }
+
+    .devtools-warning {
+        left: 10px;
+        right: 10px;
+        min-width: unset;
+        transform: translate(0, -50%);
+        top: 50%;
+        padding: 24px;
+    }
+}

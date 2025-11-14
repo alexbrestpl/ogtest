@@ -31,6 +31,10 @@ function initDatabase() {
             correct_answers INTEGER DEFAULT 0,
             wrong_answers INTEGER DEFAULT 0,
             percentage REAL DEFAULT 0,
+            session_token TEXT UNIQUE,
+            question_ids TEXT,
+            current_question_index INTEGER DEFAULT 0,
+            focus_switches INTEGER DEFAULT 0,
             FOREIGN KEY (user_uuid) REFERENCES users(uuid)
         )
     `);
@@ -73,17 +77,27 @@ function upsertUser(uuid) {
     return stmt.run(uuid);
 }
 
-// Создать новую сессию
+// Создать новую сессию с выбором вопросов
 function createSession(userUuid, mode) {
     upsertUser(userUuid);
 
+    // Получаем список вопросов для сессии
+    const questionIds = getQuestionIdsForMode(mode);
+
+    // Генерируем токен сессии
+    const sessionToken = generateSessionToken();
+
     const stmt = db.prepare(`
-        INSERT INTO sessions (user_uuid, mode)
-        VALUES (?, ?)
+        INSERT INTO sessions (user_uuid, mode, session_token, question_ids, current_question_index)
+        VALUES (?, ?, ?, ?, 0)
     `);
 
-    const result = stmt.run(userUuid, mode);
-    return result.lastInsertRowid;
+    const result = stmt.run(userUuid, mode, sessionToken, JSON.stringify(questionIds));
+    return {
+        sessionId: result.lastInsertRowid,
+        sessionToken: sessionToken,
+        totalQuestions: questionIds.length
+    };
 }
 
 // Завершить сессию
@@ -166,6 +180,150 @@ function getOverallStats() {
     return stats;
 }
 
+// Генерация токена сессии
+function generateSessionToken() {
+    const crypto = require('crypto');
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// Получить ID вопросов для сессии в зависимости от режима
+function getQuestionIdsForMode(mode) {
+    const allQuestions = db.prepare('SELECT question_number FROM questions ORDER BY question_number').all();
+    const allIds = allQuestions.map(q => q.question_number);
+
+    if (mode === 'test') {
+        // Режим теста: 45 случайных вопросов
+        return shuffleArray(allIds).slice(0, 45);
+    } else {
+        // Режим обучения: все вопросы в порядке
+        return allIds;
+    }
+}
+
+// Перемешать массив (Fisher-Yates shuffle)
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+// Получить следующий вопрос для сессии
+function getNextQuestion(sessionId, sessionToken) {
+    // Проверяем токен и получаем сессию
+    const session = db.prepare(`
+        SELECT * FROM sessions WHERE id = ? AND session_token = ?
+    `).get(sessionId, sessionToken);
+
+    if (!session) {
+        throw new Error('Недействительная сессия или токен');
+    }
+
+    if (session.end_time) {
+        throw new Error('Сессия уже завершена');
+    }
+
+    const questionIds = JSON.parse(session.question_ids);
+    const currentIndex = session.current_question_index;
+
+    if (currentIndex >= questionIds.length) {
+        return null; // Все вопросы завершены
+    }
+
+    const questionNumber = questionIds[currentIndex];
+
+    // Получаем вопрос БЕЗ правильного ответа
+    const question = db.prepare(`
+        SELECT
+            question_number,
+            question_text,
+            answers,
+            document_link,
+            document_text,
+            image_url,
+            image_file
+        FROM questions
+        WHERE question_number = ?
+    `).get(questionNumber);
+
+    if (!question) {
+        throw new Error(`Вопрос ${questionNumber} не найден`);
+    }
+
+    // Парсим JSON ответов
+    question.answers = JSON.parse(question.answers);
+
+    return {
+        questionIndex: currentIndex + 1,
+        totalQuestions: questionIds.length,
+        question: question
+    };
+}
+
+// Проверить ответ и перейти к следующему вопросу
+function submitAnswer(sessionId, sessionToken, questionNumber, answerId) {
+    // Проверяем токен и получаем сессию
+    const session = db.prepare(`
+        SELECT * FROM sessions WHERE id = ? AND session_token = ?
+    `).get(sessionId, sessionToken);
+
+    if (!session) {
+        throw new Error('Недействительная сессия или токен');
+    }
+
+    if (session.end_time) {
+        throw new Error('Сессия уже завершена');
+    }
+
+    // Получаем правильный ответ
+    const questionData = db.prepare(`
+        SELECT correct_answer_id, correct_answer_text
+        FROM questions
+        WHERE question_number = ?
+    `).get(questionNumber);
+
+    if (!questionData) {
+        throw new Error(`Вопрос ${questionNumber} не найден`);
+    }
+
+    const isCorrect = questionData.correct_answer_id === answerId;
+
+    // Логируем ответ
+    logAnswer(sessionId, questionNumber, isCorrect);
+
+    // Увеличиваем индекс текущего вопроса
+    db.prepare(`
+        UPDATE sessions
+        SET current_question_index = current_question_index + 1
+        WHERE id = ?
+    `).run(sessionId);
+
+    return {
+        isCorrect: isCorrect,
+        correctAnswerId: questionData.correct_answer_id,
+        correctAnswerText: questionData.correct_answer_text
+    };
+}
+
+// Логировать смену фокуса
+function logFocusSwitch(sessionId, sessionToken) {
+    const session = db.prepare(`
+        SELECT * FROM sessions WHERE id = ? AND session_token = ?
+    `).get(sessionId, sessionToken);
+
+    if (!session) {
+        return;
+    }
+
+    db.prepare(`
+        UPDATE sessions
+        SET focus_switches = focus_switches + 1
+        WHERE id = ?
+    `).run(sessionId);
+}
+
 // Инициализируем базу данных при загрузке модуля
 initDatabase();
 
@@ -175,5 +333,8 @@ module.exports = {
     endSession,
     logAnswer,
     getSessionStats,
-    getOverallStats
+    getOverallStats,
+    getNextQuestion,
+    submitAnswer,
+    logFocusSwitch
 };

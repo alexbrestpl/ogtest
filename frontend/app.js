@@ -1,14 +1,16 @@
 // Состояние приложения
-let allQuestions = [];  // Все вопросы из базы
-let questions = [];      // Вопросы текущей сессии
+// ⚠️ Вопросы больше не хранятся на клиенте! Загружаются с сервера по одному.
 let currentQuestionIndex = 0;
 let correctAnswersCount = 0;
 let wrongAnswersCount = 0;
 let currentMode = null;  // 'training' или 'test'
 let inactivityTimer = null;  // Таймер бездействия
 let currentSessionId = null;  // ID текущей сессии на backend
+let sessionToken = null;  // Токен сессии для защищенных запросов
 let userUuid = null;  // UUID пользователя
 let topWrongQuestions = [];  // Вопросы с ошибками
+let totalQuestionsInSession = 0;  // Общее количество вопросов в сессии
+let currentQuestion = null;  // Текущий загруженный вопрос
 
 // Backend API URL
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -59,7 +61,7 @@ function getUserUUID() {
 }
 
 // Функции для работы с backend API
-async function apiRequest(endpoint, method = 'GET', data = null) {
+async function apiRequest(endpoint, method = 'GET', data = null, includeToken = false) {
     try {
         const options = {
             method: method,
@@ -67,6 +69,11 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
                 'Content-Type': 'application/json',
             }
         };
+
+        // Добавляем session token для защищенных запросов
+        if (includeToken && sessionToken) {
+            options.headers['X-Session-Token'] = sessionToken;
+        }
 
         if (data && method !== 'GET') {
             options.body = JSON.stringify(data);
@@ -80,113 +87,181 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
 
         return await response.json();
     } catch (error) {
-        console.warn('⚠️ Ошибка API запроса:', error.message);
-        // Приложение продолжает работать без backend
-        return null;
+        console.error('⚠️ Ошибка API запроса:', error.message);
+        throw error;
     }
 }
 
 async function startBackendSession(mode) {
-    const result = await apiRequest('/session-start', 'POST', {
-        userUuid: userUuid,
-        mode: mode
-    });
+    try {
+        const result = await apiRequest('/session-start', 'POST', {
+            userUuid: userUuid,
+            mode: mode
+        });
 
-    if (result && result.sessionId) {
-        currentSessionId = result.sessionId;
-        console.log('✅ Сессия создана на backend:', currentSessionId);
+        if (result && result.success) {
+            currentSessionId = result.sessionId;
+            sessionToken = result.sessionToken;
+            totalQuestionsInSession = result.totalQuestions;
+
+            // Сохраняем в localStorage для восстановления
+            saveSessionState();
+
+            console.log('✅ Сессия создана:', currentSessionId);
+            console.log('📊 Всего вопросов:', totalQuestionsInSession);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('❌ Ошибка создания сессии:', error);
+        alert('Ошибка подключения к серверу. Проверьте интернет-соединение.');
+        return false;
     }
 }
 
-async function logBackendAnswer(questionId, isCorrect) {
-    if (!currentSessionId) return;
+// Загрузить следующий вопрос с сервера
+async function loadNextQuestion() {
+    try {
+        const result = await apiRequest(
+            `/session/${currentSessionId}/next`,
+            'GET',
+            null,
+            true
+        );
 
-    await apiRequest('/answer', 'POST', {
-        sessionId: currentSessionId,
-        questionId: questionId,
-        isCorrect: isCorrect
-    });
+        if (result.completed) {
+            // Все вопросы завершены
+            return null;
+        }
+
+        if (result.success && result.question) {
+            currentQuestion = result.question;
+            currentQuestionIndex = result.questionIndex - 1; // API возвращает 1-based
+            totalQuestionsInSession = result.totalQuestions;
+
+            console.log(`✅ Загружен вопрос ${result.questionIndex}/${result.totalQuestions}`);
+            return currentQuestion;
+        }
+
+        return null;
+    } catch (error) {
+        console.error('❌ Ошибка загрузки вопроса:', error);
+        alert('Ошибка загрузки вопроса. Проверьте подключение.');
+        return null;
+    }
+}
+
+// Отправить ответ на сервер для проверки
+async function submitAnswerToServer(questionNumber, answerId) {
+    try {
+        const result = await apiRequest(
+            `/session/${currentSessionId}/submit-answer`,
+            'POST',
+            { questionNumber, answerId },
+            true
+        );
+
+        if (result.success) {
+            return {
+                isCorrect: result.isCorrect,
+                correctAnswerId: result.correctAnswerId,
+                correctAnswerText: result.correctAnswerText
+            };
+        }
+
+        return null;
+    } catch (error) {
+        console.error('❌ Ошибка проверки ответа:', error);
+        alert('Ошибка проверки ответа. Попробуйте еще раз.');
+        return null;
+    }
+}
+
+// Логировать смену фокуса на сервере
+async function logFocusSwitchToServer() {
+    if (!currentSessionId || !sessionToken) return;
+
+    try {
+        await apiRequest(
+            `/session/${currentSessionId}/focus-switch`,
+            'POST',
+            {},
+            true
+        );
+        console.log('📝 Смена фокуса залогирована');
+    } catch (error) {
+        console.warn('⚠️ Ошибка логирования смены фокуса:', error);
+    }
 }
 
 async function endBackendSession() {
     if (!currentSessionId) return;
 
-    await apiRequest('/session-end', 'POST', {
-        sessionId: currentSessionId,
-        correctAnswers: correctAnswersCount,
-        wrongAnswers: wrongAnswersCount,
-        topWrongQuestions: topWrongQuestions
-    });
+    try {
+        await apiRequest('/session-end', 'POST', {
+            sessionId: currentSessionId,
+            correctAnswers: correctAnswersCount,
+            wrongAnswers: wrongAnswersCount,
+            topWrongQuestions: topWrongQuestions
+        });
 
-    console.log('✅ Сессия завершена на backend');
+        console.log('✅ Сессия завершена на backend');
+    } catch (error) {
+        console.error('❌ Ошибка завершения сессии:', error);
+    }
+
     currentSessionId = null;
+    sessionToken = null;
     topWrongQuestions = [];
 }
 
-// Функции для работы с localStorage
-function saveState() {
+// Функции для работы с localStorage (ЗАЩИЩЕННАЯ ВЕРСИЯ - не сохраняем вопросы!)
+function saveSessionState() {
     const state = {
+        currentSessionId: currentSessionId,
+        sessionToken: sessionToken,
         currentMode: currentMode,
         currentQuestionIndex: currentQuestionIndex,
         correctAnswersCount: correctAnswersCount,
         wrongAnswersCount: wrongAnswersCount,
-        questions: questions,
-        shuffleMode: document.getElementById('shuffleCheckbox')?.checked || false
+        totalQuestionsInSession: totalQuestionsInSession
+        // ⚠️ НЕ сохраняем вопросы и правильные ответы!
     };
     localStorage.setItem('quizAppState', JSON.stringify(state));
 }
 
-function loadState() {
+function loadSessionState() {
     const savedState = localStorage.getItem('quizAppState');
     if (savedState) {
         try {
             const state = JSON.parse(savedState);
+            currentSessionId = state.currentSessionId;
+            sessionToken = state.sessionToken;
             currentMode = state.currentMode;
-            currentQuestionIndex = state.currentQuestionIndex;
-            correctAnswersCount = state.correctAnswersCount;
-            wrongAnswersCount = state.wrongAnswersCount;
-            questions = state.questions;
+            currentQuestionIndex = state.currentQuestionIndex || 0;
+            correctAnswersCount = state.correctAnswersCount || 0;
+            wrongAnswersCount = state.wrongAnswersCount || 0;
+            totalQuestionsInSession = state.totalQuestionsInSession || 0;
 
-            // Восстанавливаем чекбокс перемешивания
-            const shuffleCheckbox = document.getElementById('shuffleCheckbox');
-            if (shuffleCheckbox) {
-                shuffleCheckbox.checked = state.shuffleMode;
-            }
-
+            console.log('✅ Состояние сессии восстановлено из localStorage');
             return true;
         } catch (error) {
             console.error('Ошибка загрузки состояния:', error);
-            clearState();
+            clearSessionState();
             return false;
         }
     }
     return false;
 }
 
-function clearState() {
+function clearSessionState() {
     localStorage.removeItem('quizAppState');
+    currentSessionId = null;
+    sessionToken = null;
 }
 
-// Загрузка вопросов из JSON
-async function loadQuestions() {
-    try {
-        const response = await fetch('questions_data.json');
-        if (!response.ok) {
-            throw new Error('Не удалось загрузить вопросы');
-        }
-        allQuestions = await response.json();
-        totalQuestionsSpan.textContent = allQuestions.length;
-    } catch (error) {
-        alert('Ошибка загрузки вопросов: ' + error.message);
-        console.error(error);
-    }
-}
-
-// Получить случайные вопросы
-function getRandomQuestions(count) {
-    const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(count, shuffled.length));
-}
+// ⚠️ Старые функции loadQuestions() и getRandomQuestions() удалены
+// Теперь вопросы загружаются с защищенного backend API по одному через loadNextQuestion()
 
 // Перемешать массив (алгоритм Fisher-Yates)
 function shuffleArray(array) {
@@ -265,9 +340,9 @@ function showScreen(screen) {
 
 // Обновить прогресс-бар
 function updateProgress() {
-    const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+    const progress = ((currentQuestionIndex + 1) / totalQuestionsInSession) * 100;
     progressBar.style.width = progress + '%';
-    progressText.textContent = `Вопрос ${currentQuestionIndex + 1} из ${questions.length}`;
+    progressText.textContent = `Вопрос ${currentQuestionIndex + 1} из ${totalQuestionsInSession}`;
 }
 
 // Сбросить таймер бездействия
@@ -293,6 +368,8 @@ function stopInactivityTimer() {
 
 // Показать всплывающее окно бездействия
 function showInactivityModal() {
+    if (!currentQuestion) return;
+
     if (currentMode === 'test') {
         // Режим теста: показываем окно с предложением пропустить
         const modal = document.getElementById('inactivityModal');
@@ -302,30 +379,12 @@ function showInactivityModal() {
         document.getElementById('hintText').style.display = 'none';
         modal.classList.remove('hidden');
     } else if (currentMode === 'training') {
-        // Режим тренировки: показываем подсказку с правильным ответом
-        const question = questions[currentQuestionIndex];
-        let correctAnswerText = question.right_answer;
-
-        // Извлекаем правильный ответ из текста
-        const patterns = [
-            /Правильный ответ:\s*(.+)/i,
-            /The correct answer is:\s*(.+)/i,
-            /Ответ:\s*(.+)/i
-        ];
-        for (const pattern of patterns) {
-            const match = correctAnswerText.match(pattern);
-            if (match) {
-                correctAnswerText = match[1].trim();
-                break;
-            }
-        }
-
+        // Режим тренировки: НЕ показываем правильный ответ (его нет на клиенте!)
         const modal = document.getElementById('inactivityModal');
         document.getElementById('modalTitle').textContent = 'Подсказка';
-        document.getElementById('modalText').textContent = 'Правильный ответ:';
-        document.getElementById('skipBtn').style.display = 'none';
-        document.getElementById('hintText').textContent = correctAnswerText;
-        document.getElementById('hintText').style.display = 'block';
+        document.getElementById('modalText').textContent = 'Попробуйте еще раз или пропустите вопрос';
+        document.getElementById('skipBtn').style.display = 'inline-block';
+        document.getElementById('hintText').style.display = 'none';
         modal.classList.remove('hidden');
     }
 }
@@ -338,42 +397,39 @@ function hideInactivityModal() {
 }
 
 // Пропустить вопрос
-function skipQuestion() {
+async function skipQuestion() {
     hideInactivityModal();
 
-    // Получаем текущий вопрос
-    const question = questions[currentQuestionIndex];
+    if (!currentQuestion) return;
 
     // Считаем пропуск как неправильный ответ
     wrongAnswersCount++;
 
     // Добавляем вопрос в список неправильных ответов
     topWrongQuestions.push({
-        question_id: question.question_number
+        question_id: currentQuestion.question_number
     });
 
-    // Логируем пропуск на backend как неправильный ответ
-    logBackendAnswer(question.question_number, false);
+    // Отправляем на сервер: пропуск = неправильный ответ (выбираем первый ID как "неправильный")
+    await submitAnswerToServer(currentQuestion.question_number, currentQuestion.answers[0].id);
 
-    saveState();
-    nextQuestion();
+    saveSessionState();
+    await nextQuestion();
 }
 
 // Отобразить вопрос
-function displayQuestion() {
-    if (currentQuestionIndex >= questions.length) {
+function displayQuestion(question) {
+    if (!question) {
         showResults();
         return;
     }
 
-    const question = questions[currentQuestionIndex];
-    
     // Рандомизируем текст кнопки "Выйти"
     randomizeExitButtonText();
 
-
     // Обновляем номер вопроса
     currentQuestionNum.textContent = currentQuestionIndex + 1;
+    totalQuestionsSpan.textContent = totalQuestionsInSession;
 
     // Обновляем текст вопроса
     questionText.textContent = question.question_text;
@@ -399,14 +455,12 @@ function displayQuestion() {
         answersToDisplay = shuffleArray(question.answers);
     }
 
-    // Создаем варианты ответов
+    // Создаем варианты ответов (БЕЗ flag - его нет в защищенном API!)
     answersToDisplay.forEach((answer, index) => {
         const answerDiv = document.createElement('div');
         answerDiv.className = 'answer-option';
-        // Используем порядковый номер после перемешивания (index + 1)
         answerDiv.textContent = (index + 1) + '. ' + answer.text;
-        answerDiv.dataset.index = index;
-        answerDiv.dataset.flag = answer.flag;
+        answerDiv.dataset.answerId = answer.id; // Сохраняем ID для отправки на сервер
         answerDiv.addEventListener('click', () => selectAnswer(answerDiv, question));
         answersContainer.appendChild(answerDiv);
     });
@@ -419,7 +473,7 @@ function displayQuestion() {
 }
 
 // Выбор ответа
-function selectAnswer(answerElement, question) {
+async function selectAnswer(answerElement, question) {
     // Если ответ уже выбран, игнорируем клик
     const allAnswers = answersContainer.querySelectorAll('.answer-option');
     if (Array.from(allAnswers).some(el => el.classList.contains('disabled'))) {
@@ -435,19 +489,31 @@ function selectAnswer(answerElement, question) {
     // Выделяем выбранный ответ
     answerElement.classList.add('selected');
 
-    // Проверяем ответ
-    checkAnswer(answerElement, question);
+    // Проверяем ответ (отправляем на сервер для проверки)
+    await checkAnswer(answerElement, question);
 }
 
-// Проверка ответа
-function checkAnswer(answerElement, question) {
+// Проверка ответа (ЗАЩИЩЕННАЯ ВЕРСИЯ - проверка на сервере)
+async function checkAnswer(answerElement, question) {
     const allAnswers = answersContainer.querySelectorAll('.answer-option');
 
     // Блокируем все ответы
     allAnswers.forEach(el => el.classList.add('disabled'));
 
-    // Проверяем, правильный ли ответ (используем dataset.flag)
-    const isCorrect = answerElement.dataset.flag === 'true';
+    // Получаем ID выбранного ответа
+    const selectedAnswerId = parseInt(answerElement.dataset.answerId);
+
+    // Отправляем на сервер для проверки
+    const result = await submitAnswerToServer(question.question_number, selectedAnswerId);
+
+    if (!result) {
+        // Ошибка связи
+        feedback.textContent = 'Ошибка проверки ответа';
+        feedback.classList.add('wrong');
+        return;
+    }
+
+    const isCorrect = result.isCorrect;
 
     if (isCorrect) {
         answerElement.classList.add('correct');
@@ -458,7 +524,8 @@ function checkAnswer(answerElement, question) {
         answerElement.classList.add('wrong');
 
         // Формируем сообщение с правильным ответом
-        let feedbackHTML = 'Неправильно.'
+        let feedbackHTML = 'Неправильно.';
+
         // Добавляем информацию о документе
         if (question.document_text && question.document_text !== '') {
             feedbackHTML += '<br><br><span class="document-text">' + question.document_text + '</span>';
@@ -477,29 +544,25 @@ function checkAnswer(answerElement, question) {
             question_id: question.question_number
         });
 
-        // Подсвечиваем правильный ответ
+        // Подсвечиваем правильный ответ (получен с сервера)
         allAnswers.forEach(el => {
-            if (el.dataset.flag === 'true') {
+            if (parseInt(el.dataset.answerId) === result.correctAnswerId) {
                 el.classList.add('correct');
             }
         });
     }
 
-    // Логируем ответ на backend
-    logBackendAnswer(question.question_number, isCorrect);
-
     // Активируем кнопку "Следующий вопрос"
     nextBtn.disabled = false;
 
     // Сохраняем состояние
-    saveState();
+    saveSessionState();
 }
 
-// Следующий вопрос
-function nextQuestion() {
-    currentQuestionIndex++;
-    saveState();
-    displayQuestion();
+// Следующий вопрос (загружаем с сервера)
+async function nextQuestion() {
+    saveSessionState();
+    await loadAndDisplayNextQuestion();
 }
 
 // Показать результаты
@@ -524,43 +587,54 @@ async function showResults() {
 // Начать режим обучения
 async function startTraining() {
     currentMode = 'training';
-
-    // Проверяем, нужно ли перемешивать вопросы
-    const shuffleCheckbox = document.getElementById('shuffleCheckbox');
-    if (shuffleCheckbox.checked) {
-        questions = shuffleArray(allQuestions);
-    } else {
-        questions = [...allQuestions];  // Все вопросы в исходном порядке
-    }
-
     currentQuestionIndex = 0;
     correctAnswersCount = 0;
     wrongAnswersCount = 0;
     topWrongQuestions = [];
 
-    // Создаем сессию на backend
-    await startBackendSession('training');
+    // Создаем защищенную сессию на backend
+    const success = await startBackendSession('training');
+    if (!success) {
+        return; // Ошибка подключения
+    }
 
-    saveState();
     showScreen(questionScreen);
-    displayQuestion();
+
+    // Загружаем первый вопрос с сервера
+    await loadAndDisplayNextQuestion();
 }
 
 // Начать режим теста
 async function startTest() {
     currentMode = 'test';
-    questions = getRandomQuestions(45);  // 45 случайных вопросов
     currentQuestionIndex = 0;
     correctAnswersCount = 0;
     wrongAnswersCount = 0;
     topWrongQuestions = [];
 
-    // Создаем сессию на backend
-    await startBackendSession('test');
+    // Создаем защищенную сессию на backend (сервер выберет 45 случайных вопросов)
+    const success = await startBackendSession('test');
+    if (!success) {
+        return; // Ошибка подключения
+    }
 
-    saveState();
     showScreen(questionScreen);
-    displayQuestion();
+
+    // Загружаем первый вопрос с сервера
+    await loadAndDisplayNextQuestion();
+}
+
+// Загрузить следующий вопрос и показать его
+async function loadAndDisplayNextQuestion() {
+    const question = await loadNextQuestion();
+
+    if (!question) {
+        // Все вопросы завершены
+        await showResults();
+        return;
+    }
+
+    displayQuestion(question);
 }
 
 // Начать заново
@@ -607,19 +681,39 @@ headerTitle.addEventListener('click', goToStart);
 document.getElementById('skipBtn').addEventListener('click', skipQuestion);
 document.getElementById('continueBtn').addEventListener('click', hideInactivityModal);
 
-// Инициализация
+// Инициализация приложения с защитой
 async function initApp() {
     // Получаем или создаем UUID пользователя
     userUuid = getUserUUID();
 
-    // Загружаем вопросы
-    await loadQuestions();
+    // Инициализируем систему безопасности
+    if (window.Security) {
+        Security.init({
+            onFocusSwitch: (count) => {
+                console.warn(`⚠️ Смена фокуса: ${count}`);
+                Security.showFocusWarning(count);
+                // Логируем на сервер
+                logFocusSwitchToServer();
+            },
+            onDevToolsOpen: () => {
+                console.error('🚨 Обнаружена попытка открыть DevTools!');
+                Security.showDevToolsWarning();
+            }
+        });
 
-    // Пытаемся восстановить состояние
-    if (loadState() && questions.length > 0) {
+        // Создаем водяной знак с UUID
+        Security.createWatermark(userUuid);
+        console.log('🔒 Система безопасности активирована');
+    }
+
+    // Пытаемся восстановить состояние сессии
+    if (loadSessionState() && currentSessionId && sessionToken) {
         // Состояние успешно загружено, восстанавливаем экран
+        console.log('✅ Восстановлена сессия:', currentSessionId);
         showScreen(questionScreen);
-        displayQuestion();
+
+        // Загружаем текущий вопрос с сервера
+        await loadAndDisplayNextQuestion();
     } else {
         // Нет сохраненного состояния, показываем стартовый экран
         showScreen(startScreen);
