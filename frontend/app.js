@@ -567,6 +567,26 @@ async function nextQuestion() {
 
 // Показать результаты
 async function showResults() {
+    // Останавливаем таймер бездействия
+    stopInactivityTimer();
+
+    // Сначала завершаем сессию на backend
+    await endBackendSession();
+
+    // Получаем актуальные счетчики из сессии на сервере
+    if (currentSessionId) {
+        try {
+            const sessionStats = await apiRequest(`/api/stats/session/${currentSessionId}`, 'GET');
+            if (sessionStats) {
+                correctAnswersCount = sessionStats.correct_answers || correctAnswersCount;
+                wrongAnswersCount = sessionStats.wrong_answers || wrongAnswersCount;
+            }
+        } catch (error) {
+            console.warn('⚠️ Не удалось получить статистику с сервера, используем локальные счетчики');
+        }
+    }
+
+    // Используем обновленные счетчики
     const answeredQuestions = correctAnswersCount + wrongAnswersCount;
     const percentage = answeredQuestions > 0 ? Math.round((correctAnswersCount / answeredQuestions) * 100) : 0;
 
@@ -574,12 +594,6 @@ async function showResults() {
     document.getElementById('wrongAnswers').textContent = wrongAnswersCount;
     document.getElementById('scorePercentage').textContent = percentage + '%';
     document.getElementById('answeredQuestions').textContent = answeredQuestions;
-
-    // Останавливаем таймер бездействия
-    stopInactivityTimer();
-
-    // Отправляем результаты на backend
-    await endBackendSession();
 
     showScreen(resultScreen);
 }
@@ -670,7 +684,11 @@ function goToStart() {
 trainingBtn.addEventListener('click', startTraining);
 testBtn.addEventListener('click', startTest);
 nextBtn.addEventListener('click', nextQuestion);
-exitBtn.addEventListener('click', showResults);
+exitBtn.addEventListener('click', async () => {
+    // Небольшая задержка чтобы последний checkAnswer успел завершиться
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await showResults();
+});
 restartBtn.addEventListener('click', restartTest);
 homeBtn.addEventListener('click', goToStart);
 infoBtn.addEventListener('click', () => showScreen(infoScreen));
@@ -687,24 +705,24 @@ async function initApp() {
     userUuid = getUserUUID();
 
     // Инициализируем систему безопасности
-    if (window.Security) {
-        Security.init({
-            onFocusSwitch: (count) => {
-                console.warn(`⚠️ Смена фокуса: ${count}`);
-                Security.showFocusWarning(count);
-                // Логируем на сервер
-                logFocusSwitchToServer();
-            },
-            onDevToolsOpen: () => {
-                console.error('🚨 Обнаружена попытка открыть DevTools!');
-                Security.showDevToolsWarning();
-            }
-        });
+    // if (window.Security) {
+    //     Security.init({
+    //         onFocusSwitch: (count) => {
+    //             console.warn(`⚠️ Смена фокуса: ${count}`);
+    //             Security.showFocusWarning(count);
+    //             // Логируем на сервер
+    //             logFocusSwitchToServer();
+    //         },
+    //         onDevToolsOpen: () => {
+    //             console.error('🚨 Обнаружена попытка открыть DevTools!');
+    //             Security.showDevToolsWarning();
+    //         }
+    //     });
 
-        // Создаем водяной знак с UUID
-        Security.createWatermark(userUuid);
-        console.log('🔒 Система безопасности активирована');
-    }
+    //     // Создаем водяной знак с UUID
+    //     Security.createWatermark(userUuid);
+    //     console.log('🔒 Система безопасности активирована');
+    // }
 
     // Пытаемся восстановить состояние сессии
     if (loadSessionState() && currentSessionId && sessionToken) {

@@ -173,6 +173,23 @@ app.post('/api/session-end', async (req, res) => {
     }
 });
 
+// GET /api/stats/session/:id - получить статистику конкретной сессии
+app.get('/api/stats/session/:id', (req, res) => {
+    try {
+        const sessionId = parseInt(req.params.id);
+        const sessionStats = db.getSessionStats(sessionId);
+
+        if (!sessionStats) {
+            return res.status(404).json({ error: 'Сессия не найдена' });
+        }
+
+        res.json(sessionStats);
+    } catch (error) {
+        console.error('Ошибка получения статистики сессии:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
+});
+
 // GET /api/stats - получить общую статистику
 app.get('/api/stats', async (req, res) => {
     try {
