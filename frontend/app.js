@@ -337,6 +337,15 @@ function showScreen(screen) {
     resultScreen.classList.add('hidden');
     infoScreen.classList.add('hidden');
     screen.classList.remove('hidden');
+
+    // Отключаем клик по заголовку во время прохождения теста
+    if (screen === questionScreen) {
+        headerTitle.style.cursor = 'default';
+        headerTitle.style.pointerEvents = 'none';
+    } else {
+        headerTitle.style.cursor = 'pointer';
+        headerTitle.style.pointerEvents = 'auto';
+    }
 }
 
 // Обновить прогресс-бар
