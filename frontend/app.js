@@ -576,7 +576,7 @@ async function showResults(forceEnd = false) {
     // Получаем актуальные счетчики и состояние сессии с сервера
     if (currentSessionId) {
         try {
-            const sessionStats = await apiRequest(`/api/stats/session/${currentSessionId}`, 'GET');
+            const sessionStats = await apiRequest(`/stats/session/${currentSessionId}`, 'GET');
             if (sessionStats) {
                 correctAnswersCount = sessionStats.correct_answers || correctAnswersCount;
                 wrongAnswersCount = sessionStats.wrong_answers || wrongAnswersCount;
