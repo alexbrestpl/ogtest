@@ -26,6 +26,7 @@ const trainingBtn = document.getElementById('trainingBtn');
 const testBtn = document.getElementById('testBtn');
 const nextBtn = document.getElementById('nextBtn');
 const exitBtn = document.getElementById('exitBtn');
+const continueTestBtn = document.getElementById('continueTestBtn');
 const restartBtn = document.getElementById('restartBtn');
 const homeBtn = document.getElementById('homeBtn');
 const infoBtn = document.getElementById('infoBtn');
@@ -566,24 +567,40 @@ async function nextQuestion() {
 }
 
 // Показать результаты
-async function showResults() {
+async function showResults(forceEnd = false) {
     // Останавливаем таймер бездействия
     stopInactivityTimer();
 
-    // Сначала завершаем сессию на backend
-    await endBackendSession();
+    let allQuestionsCompleted = false;
 
-    // Получаем актуальные счетчики из сессии на сервере
+    // Получаем актуальные счетчики и состояние сессии с сервера
     if (currentSessionId) {
         try {
             const sessionStats = await apiRequest(`/api/stats/session/${currentSessionId}`, 'GET');
             if (sessionStats) {
                 correctAnswersCount = sessionStats.correct_answers || correctAnswersCount;
                 wrongAnswersCount = sessionStats.wrong_answers || wrongAnswersCount;
+
+                // Проверяем, завершены ли все вопросы по данным с сервера
+                if (sessionStats.question_ids) {
+                    const questionIds = JSON.parse(sessionStats.question_ids);
+                    const currentIndex = sessionStats.current_question_index || 0;
+                    allQuestionsCompleted = currentIndex >= questionIds.length;
+                    totalQuestionsInSession = questionIds.length;
+                }
             }
         } catch (error) {
             console.warn('⚠️ Не удалось получить статистику с сервера, используем локальные счетчики');
+            // Fallback на локальную проверку
+            allQuestionsCompleted = currentQuestionIndex >= totalQuestionsInSession;
         }
+    }
+
+    // Завершаем сессию только если:
+    // 1. Все вопросы пройдены ИЛИ
+    // 2. Принудительно запрошено завершение (при выходе на главную/рестарте)
+    if (allQuestionsCompleted || forceEnd) {
+        await endBackendSession();
     }
 
     // Используем обновленные счетчики
@@ -594,6 +611,15 @@ async function showResults() {
     document.getElementById('wrongAnswers').textContent = wrongAnswersCount;
     document.getElementById('scorePercentage').textContent = percentage + '%';
     document.getElementById('answeredQuestions').textContent = answeredQuestions;
+
+    // Показываем/скрываем кнопку "Продолжить тест" в зависимости от состояния
+    if (allQuestionsCompleted || forceEnd) {
+        // Тест завершен - скрываем кнопку "Продолжить"
+        continueTestBtn.classList.add('hidden');
+    } else {
+        // Есть еще вопросы - показываем кнопку "Продолжить"
+        continueTestBtn.classList.remove('hidden');
+    }
 
     showScreen(resultScreen);
 }
@@ -651,17 +677,37 @@ async function loadAndDisplayNextQuestion() {
     displayQuestion(question);
 }
 
+// Продолжить тест после просмотра промежуточных результатов
+async function continueTest() {
+    // Возвращаемся к экрану вопросов
+    showScreen(questionScreen);
+
+    // Загружаем следующий вопрос
+    await loadAndDisplayNextQuestion();
+}
+
 // Начать заново
-function restartTest() {
+async function restartTest() {
+    // Завершаем текущую сессию перед началом новой
+    if (currentSessionId) {
+        await showResults(true); // forceEnd = true
+    }
+
+    // Запускаем новую сессию
     if (currentMode === 'training') {
-        startTraining();
+        await startTraining();
     } else {
-        startTest();
+        await startTest();
     }
 }
 
 // Вернуться к выбору режима
-function goToStart() {
+async function goToStart() {
+    // Завершаем активную сессию перед выходом
+    if (currentSessionId) {
+        await endBackendSession();
+    }
+
     currentMode = null;
     currentQuestionIndex = 0;
     correctAnswersCount = 0;
@@ -671,7 +717,7 @@ function goToStart() {
     stopInactivityTimer();
 
     // Очищаем сохраненное состояние
-    clearState();
+    clearSessionState();
 
     // Сбрасываем прогресс-бар
     progressBar.style.width = '0%';
@@ -687,8 +733,9 @@ nextBtn.addEventListener('click', nextQuestion);
 exitBtn.addEventListener('click', async () => {
     // Небольшая задержка чтобы последний checkAnswer успел завершиться
     await new Promise(resolve => setTimeout(resolve, 100));
-    await showResults();
+    await showResults(); // Показываем промежуточные результаты, НЕ завершая сессию
 });
+continueTestBtn.addEventListener('click', continueTest);
 restartBtn.addEventListener('click', restartTest);
 homeBtn.addEventListener('click', goToStart);
 infoBtn.addEventListener('click', () => showScreen(infoScreen));
