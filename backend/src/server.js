@@ -1,7 +1,7 @@
-require('dotenv').config({ path: '../.env' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const db = require('./config/database');
 const telegram = require('./services/telegram');
 
