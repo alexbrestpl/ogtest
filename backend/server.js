@@ -229,11 +229,17 @@ app.listen(PORT, () => {
     console.log(`🌐 Frontend доступен по адресу http://localhost:${PORT}`);
     console.log(`🤖 Telegram: ${process.env.TELEGRAM_BOT_TOKEN ? '✅ настроен' : '❌ не настроен'}`);
     console.log(`🔧 Режим: ${isDevelopment ? 'разработка' : 'продакшн'}`);
+
+    // Запускаем Telegram бота
+    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+        telegram.startPolling();
+    }
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\n🛑 Получен сигнал SIGINT, завершаю работу...');
+    telegram.stopPolling();
     db.db.close();
     process.exit(0);
 });

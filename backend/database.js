@@ -324,6 +324,19 @@ function logFocusSwitch(sessionId, sessionToken) {
     `).run(sessionId);
 }
 
+// Получить топ N самых сложных вопросов
+function getDifficultQuestions(limit = 10) {
+    const stmt = db.prepare(`
+        SELECT question_id, total_shown, total_wrong, error_rate
+        FROM questions_stats
+        WHERE total_shown >= 1
+        ORDER BY error_rate DESC
+        LIMIT ?
+    `);
+
+    return stmt.all(limit);
+}
+
 // Инициализируем базу данных при загрузке модуля
 initDatabase();
 
@@ -336,5 +349,6 @@ module.exports = {
     getOverallStats,
     getNextQuestion,
     submitAnswer,
-    logFocusSwitch
+    logFocusSwitch,
+    getDifficultQuestions
 };
