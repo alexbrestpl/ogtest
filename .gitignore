@@ -27,11 +27,13 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+backend/.env
 
-# Database files (for future backend)
+# Database files
 *.db
 *.sqlite
 *.sqlite3
+backend/statistics.db
 
 # Node modules (for future backend)
 node_modules/

@@ -2,10 +2,12 @@
   "name": "ogtest-backend",
   "version": "1.0.0",
   "description": "Backend API для сбора статистики приложения по перевозке опасных грузов",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate:questions": "node scripts/migrate-questions.js",
+    "migrate:db": "node scripts/migrate-database.js"
   },
   "keywords": ["quiz", "statistics", "express", "sqlite", "telegram"],
   "author": "Alex Leoniuk",

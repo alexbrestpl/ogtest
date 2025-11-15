@@ -1,0 +1,28 @@
+{
+  "name": "ogtest-monorepo",
+  "version": "1.0.0",
+  "description": "Приложение для тестирования знаний по перевозке опасных грузов",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "start": "cd backend && npm start",
+    "dev": "cd backend && npm run dev",
+    "install:backend": "cd backend && npm install",
+    "migrate:questions": "cd backend && npm run migrate:questions",
+    "migrate:db": "cd backend && npm run migrate:db"
+  },
+  "keywords": [
+    "quiz",
+    "dangerous-goods",
+    "exam",
+    "statistics"
+  ],
+  "author": "Alex Leoniuk",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  }
+}

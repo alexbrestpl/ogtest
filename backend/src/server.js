@@ -1,9 +1,9 @@
-require('dotenv').config({ path: './.env' });
+require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const db = require('./database');
-const telegram = require('./telegram');
+const db = require('./config/database');
+const telegram = require('./services/telegram');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,7 +32,7 @@ app.use(cors({
 }));
 
 // Раздача статических файлов (frontend)
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname, '../../frontend')));
 
 // API эндпоинты
 

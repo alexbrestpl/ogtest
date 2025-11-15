@@ -329,7 +329,7 @@ function getDifficultQuestions(limit = 10) {
     const stmt = db.prepare(`
         SELECT question_id, total_shown, total_wrong, error_rate
         FROM questions_stats
-        WHERE total_shown >= 1
+        WHERE total_shown >= 5
         ORDER BY error_rate DESC
         LIMIT ?
     `);

@@ -158,7 +158,7 @@ function formatDifficultQuestions(questions) {
 // Обработка команды /difficult
 async function handleDifficultCommand(chatId) {
     try {
-        const db = require('./database');
+        const db = require('../config/database');
         const difficultQuestions = db.getDifficultQuestions(10);
         const message = formatDifficultQuestions(difficultQuestions);
         await sendTelegramMessage(message);
