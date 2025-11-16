@@ -203,6 +203,12 @@ function showDevToolsWarning() {
     `;
 
     document.body.appendChild(warning);
+
+    // Автоматически скрыть через 5 секунд
+    setTimeout(() => {
+        warning.style.opacity = '0';
+        setTimeout(() => warning.remove(), 500);
+    }, 5000);
 }
 
 /**
