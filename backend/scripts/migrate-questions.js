@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 
-const dbPath = path.join(__dirname, '..', 'statistics.db');
+const dbPath = path.join(__dirname, '..', 'src', 'config', 'statistics.db');
 const questionsJsonPath = path.join(__dirname, '..', 'data', 'questions_data.json');
 
 console.log('🔄 Начинаю миграцию вопросов...');
