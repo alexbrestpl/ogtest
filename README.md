@@ -40,23 +40,44 @@
 
 ```
 ogtest/
-├── frontend/             # Frontend приложение
-│   ├── index.html        # Главная страница
-│   ├── app.js            # Логика приложения
-│   ├── style.css         # Стили
-│   ├── questions_data.json  # База вопросов
-│   └── img/              # Изображения к вопросам
-├── backend/              # Backend API
-│   ├── server.js         # Express сервер
-│   ├── database.js       # Работа с SQLite
-│   ├── telegram.js       # Telegram интеграция
-│   ├── package.json      # Зависимости Node.js
-│   ├── statistics.db     # База данных (создается автоматически)
-│   ├── .env              # Конфигурация (не в Git)
-│   ├── .env.example      # Пример конфигурации
-│   └── .htaccess         # Защита для Apache (блокирует .env)
-├── .gitignore            # Игнорируемые файлы
-└── README.md             # Документация
+├── frontend/                    # Frontend приложение
+│   ├── index.html               # Главная страница
+│   ├── public/                  # Статические ресурсы
+│   │   ├── favicon.svg          # Иконка сайта
+│   │   └── img/                 # Изображения к вопросам
+│   └── src/                     # Исходный код
+│       ├── app.js               # Логика приложения
+│       ├── security.js          # Модуль защиты от читерства
+│       └── style.css            # Стили
+├── backend/                     # Backend API
+│   ├── src/                     # Исходный код
+│   │   ├── config/
+│   │   │   └── database.js      # Работа с SQLite
+│   │   ├── services/
+│   │   │   └── telegram.js      # Telegram интеграция
+│   │   └── server.js            # Express сервер
+│   ├── scripts/                 # Скрипты миграций
+│   │   ├── migrate-database.js  # Миграция схемы БД
+│   │   └── migrate-questions.js # Импорт вопросов из JSON
+│   ├── data/                    # Данные
+│   │   └── questions_data.json  # База вопросов
+│   ├── package.json             # Зависимости Node.js
+│   ├── statistics.db            # База данных (создается автоматически)
+│   ├── .env                     # Конфигурация (не в Git)
+│   └── .env.example             # Пример конфигурации
+├── docs/                        # Документация
+│   ├── API.md                   # Описание API endpoints
+│   ├── DATABASE.md              # Схема базы данных
+│   ├── DEPLOYMENT.md            # Руководство по деплою
+│   └── TELEGRAM.md              # Telegram бот
+├── scripts/                     # Скрипты автоматизации
+│   └── setup.sh                 # Скрипт настройки проекта
+├── ecosystem.config.js          # PM2 конфигурация
+├── deploy.sh                    # Скрипт деплоя
+├── docker-compose.yml           # Docker конфигурация
+├── .gitignore                   # Игнорируемые файлы
+├── package.json                 # Root package (npm workspaces)
+└── README.md                    # Документация
 ```
 
 ## Установка и запуск
@@ -174,100 +195,54 @@ npm run dev
 
 ## Деплой на VPS
 
-### Требования
-- Ubuntu/Debian
-- Node.js 16+
-- Nginx
-- Домен (для SSL)
+### Быстрый старт с PM2
 
-### Шаги развертывания
-
-1. **Клонирование на сервер**:
 ```bash
-ssh user@your-vps
+# На сервере
 cd /var/www
 git clone https://github.com/alexbrestpl/ogtest.git
-cd ogtest/backend
-npm install --production
-```
+cd ogtest
 
-2. **Настройка .env**:
-```bash
-cp .env.example .env
-nano .env
-# Укажите продакшн настройки
-```
+# Настройка
+./scripts/setup.sh
 
-3. **Настройка Nginx**:
-```nginx
-server {
-    listen 80;
-    server_name test.domain.com;
-
-    # SECURITY: Блокировка доступа к .env и другим dotfiles
-    location ~ /\. {
-        deny all;
-        return 404;
-    }
-
-    # SECURITY: Дополнительная защита для критичных файлов
-    location ~* ^/(\.env|\.git|node_modules|backend/\.env|backend/node_modules) {
-        deny all;
-        return 404;
-    }
-
-    # Frontend (статика)
-    location / {
-        root /var/www/ogtest/frontend;
-        index index.html;
-        try_files $uri $uri/ =404;
-    }
-
-    # Backend API
-    location /api {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-4. **Запуск backend с PM2**:
-```bash
-npm install -g pm2
-cd /var/www/ogtest/backend
-pm2 start server.js --name ogtest-backend
-pm2 startup
+# Запуск с PM2
+pm2 start ecosystem.config.js
 pm2 save
-```
+pm2 startup
 
-5. **Установка SSL (Let's Encrypt)**:
-```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d test.domain.com
-```
-
-6. **Проверка**:
-```bash
-pm2 status
+# Настройка Nginx (см. nginx.conf.example)
+sudo cp nginx.conf.example /etc/nginx/sites-available/ogtest
+# Отредактируйте файл, заменив test.yourdomain.com на ваш домен
+sudo ln -s /etc/nginx/sites-available/ogtest /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
+
+# Установка SSL
+sudo certbot --nginx -d test.yourdomain.com
 ```
 
-Откройте https://test.domain.com
-
-## Обновление
+### Обновление приложения
 
 ```bash
 cd /var/www/ogtest
-git pull origin main
-cd backend
-npm install
-pm2 restart ogtest-backend
+./deploy.sh
 ```
+
+### Подробная инструкция
+
+Полное руководство по деплою с Nginx, PM2, SSL и мониторингом:
+**📖 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
+
+Включает:
+- Установку всех зависимостей
+- Настройку DNS и субдомена
+- Конфигурацию Nginx
+- Установку SSL сертификатов (Let's Encrypt)
+- Настройку firewall
+- Мониторинг и логи
+- Решение проблем
+- Бэкапы базы данных
 
 ## База данных
 
