@@ -222,8 +222,14 @@ app.use('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint не найден' });
 });
 
-// Главная страница - отдаем index.html для всех не-API маршрутов
-app.get('*', (req, res) => {
+// Главная страница - отдаем index.html только для HTML запросов
+// Статические файлы уже обработаны express.static выше
+app.get('*', (req, res, next) => {
+    // Пропускаем запросы к статическим файлам (с расширениями)
+    if (req.path.match(/\.(js|css|jpg|jpeg|png|gif|svg|ico)$/)) {
+        return next();
+    }
+    // Для всех остальных запросов отдаем index.html
     res.sendFile(path.join(__dirname, '../../frontend/index.html'));
 });
 
