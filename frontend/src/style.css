@@ -243,25 +243,25 @@ main {
 
 /* Красивая кнопка выхода */
 #exitBtn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
     color: white;
     font-weight: 600;
     padding: 10px 24px;
     font-size: 14px;
     border: none;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
     transition: all 0.3s ease;
 }
 
 #exitBtn:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    background: linear-gradient(135deg, #34495e 0%, #5dade2 100%);
+    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.5);
     transform: translateY(-3px);
 }
 
 #exitBtn:active {
     transform: translateY(-1px);
-    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 3px 10px rgba(52, 152, 219, 0.3);
 }
 
 .btn-link {
