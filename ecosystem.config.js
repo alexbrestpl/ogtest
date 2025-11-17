@@ -3,6 +3,7 @@ module.exports = {
     name: 'ogtest',
     cwd: './backend',
     script: 'src/server.js',
+    exec_mode: 'fork',
     instances: 1,
     autorestart: true,
     watch: false,

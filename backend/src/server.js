@@ -222,6 +222,11 @@ app.use('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint не найден' });
 });
 
+// Главная страница - отдаем index.html для всех не-API маршрутов
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/index.html'));
+});
+
 // Запуск сервера
 app.listen(PORT, () => {
     console.log(`🚀 Сервер запущен на порту ${PORT}`);
