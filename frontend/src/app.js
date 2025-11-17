@@ -447,7 +447,7 @@ function displayQuestion(question) {
     // Обрабатываем изображение
     if (question.image_file && question.image_file !== '') {
         questionImageContainer.classList.remove('hidden');
-        questionImage.src = 'img/' + question.image_file;
+        questionImage.src = 'public/img/' + question.image_file;
         questionImage.alt = 'Изображение к вопросу ' + question.question_number;
     } else {
         questionImageContainer.classList.add('hidden');
