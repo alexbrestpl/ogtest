@@ -14,7 +14,7 @@ let currentQuestion = null;  // Текущий загруженный вопро
 
 // Backend API URL
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3000/api'
+    ? 'http://localhost:3001/api'
     : '/api';  // В продакшне API на том же домене
 
 // DOM элементы
