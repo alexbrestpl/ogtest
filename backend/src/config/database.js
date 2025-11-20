@@ -158,32 +158,46 @@ function getSessionStats(sessionId) {
 function getOverallStats() {
     const stats = {};
 
-    // Общее количество сессий
-    stats.totalSessions = db.prepare('SELECT COUNT(*) as count FROM sessions').get().count;
+    // Общее количество завершенных тестов (минимум 45 вопросов)
+    stats.totalSessions = db.prepare(`
+        SELECT COUNT(*) as count
+        FROM sessions
+        WHERE end_time IS NOT NULL
+        AND (correct_answers + wrong_answers) >= 45
+    `).get().count;
 
     // Количество пользователей
     stats.totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
 
-    // Средний процент успешности
-    const avgPercentage = db.prepare('SELECT AVG(percentage) as avg FROM sessions WHERE end_time IS NOT NULL').get();
+    // Средний процент успешности (только завершенные тесты с >= 45 вопросов)
+    const avgPercentage = db.prepare(`
+        SELECT AVG(percentage) as avg
+        FROM sessions
+        WHERE end_time IS NOT NULL
+        AND (correct_answers + wrong_answers) >= 45
+    `).get();
     stats.averagePercentage = avgPercentage.avg ? avgPercentage.avg.toFixed(2) : 0;
 
-    // Топ-10 самых сложных вопросов с полными данными
+    // Топ-10 самых сложных вопросов (только из завершенных тестов с >= 45 вопросов)
     stats.topDifficultQuestions = db.prepare(`
         SELECT
-            qs.question_id,
-            qs.total_shown,
-            qs.total_wrong,
-            qs.error_rate,
+            a.question_id,
+            COUNT(*) as total_shown,
+            SUM(CASE WHEN a.is_correct = 0 THEN 1 ELSE 0 END) as total_wrong,
+            CAST(SUM(CASE WHEN a.is_correct = 0 THEN 1 ELSE 0 END) AS REAL) / COUNT(*) * 100 as error_rate,
             q.question_text,
             q.answers,
             q.correct_answer_id,
             q.correct_answer_text,
             q.document_link
-        FROM questions_stats qs
-        JOIN questions q ON qs.question_id = q.question_number
-        WHERE qs.total_shown >= 5
-        ORDER BY qs.error_rate DESC
+        FROM answers a
+        JOIN sessions s ON a.session_id = s.id
+        JOIN questions q ON a.question_id = q.question_number
+        WHERE s.end_time IS NOT NULL
+        AND (s.correct_answers + s.wrong_answers) >= 45
+        GROUP BY a.question_id
+        HAVING COUNT(*) >= 5
+        ORDER BY error_rate DESC
         LIMIT 10
     `).all().map(q => ({
         ...q,
