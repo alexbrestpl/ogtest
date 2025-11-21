@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "migrate:questions": "node scripts/migrate-questions.js",
-    "migrate:db": "node scripts/migrate-database.js"
+    "migrate:db": "node scripts/migrate-database.js",
+    "migrate:db-location": "bash ../scripts/migrate-db-location.sh"
   },
   "keywords": ["quiz", "statistics", "express", "sqlite", "telegram"],
   "author": "Alex Leoniuk",
