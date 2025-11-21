@@ -163,8 +163,8 @@ app.post('/api/session-end', async (req, res) => {
         // Завершаем сессию в БД (с проверкой токена)
         db.endSession(sessionId, sessionToken, correctAnswers, wrongAnswers);
 
-        // Получаем данные сессии
-        const sessionData = db.getSessionStats(sessionId);
+        // Получаем данные сессии (с токеном для полных данных, токен уже проверен в endSession)
+        const sessionData = db.getSessionStats(sessionId, sessionToken);
 
         // Отправляем в Telegram
         if (sessionData) {
@@ -186,10 +186,25 @@ app.post('/api/session-end', async (req, res) => {
 app.get('/api/stats/session/:id', (req, res) => {
     try {
         const sessionId = parseInt(req.params.id);
-        const sessionStats = db.getSessionStats(sessionId);
+        const sessionToken = req.headers['x-session-token'];
 
-        if (!sessionStats) {
-            return res.status(404).json({ error: 'Сессия не найдена' });
+        // Пытаемся получить статистику с токеном (для активных сессий)
+        let sessionStats = null;
+
+        if (sessionToken) {
+            // Если токен предоставлен, проверяем его и возвращаем полные данные
+            sessionStats = db.getSessionStats(sessionId, sessionToken);
+
+            if (!sessionStats) {
+                return res.status(403).json({ error: 'Недействительный токен или сессия не найдена' });
+            }
+        } else {
+            // Без токена возвращаем только публичные данные завершенных сессий
+            sessionStats = db.getSessionStats(sessionId);
+
+            if (!sessionStats) {
+                return res.status(404).json({ error: 'Сессия не найдена или еще не завершена' });
+            }
         }
 
         res.json(sessionStats);

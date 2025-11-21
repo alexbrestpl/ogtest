@@ -158,10 +158,42 @@ function updateQuestionStats(questionId, isCorrect) {
     stmt.run(questionId, wrongIncrement, wrongIncrement, wrongIncrement, wrongIncrement);
 }
 
-// Получить статистику сессии
-function getSessionStats(sessionId) {
+// Получить статистику сессии (безопасная версия без токена)
+function getSessionStats(sessionId, sessionToken = null) {
+    // Если передан токен, проверяем его
+    if (sessionToken) {
+        const stmt = db.prepare(`
+            SELECT
+                id,
+                user_uuid,
+                mode,
+                start_time,
+                end_time,
+                correct_answers,
+                wrong_answers,
+                percentage,
+                question_ids,
+                current_question_index,
+                focus_switches
+            FROM sessions
+            WHERE id = ? AND session_token = ?
+        `);
+        return stmt.get(sessionId, sessionToken);
+    }
+
+    // Без токена возвращаем только публичные данные (для завершенных сессий)
     const stmt = db.prepare(`
-        SELECT * FROM sessions WHERE id = ?
+        SELECT
+            id,
+            mode,
+            start_time,
+            end_time,
+            correct_answers,
+            wrong_answers,
+            percentage,
+            focus_switches
+        FROM sessions
+        WHERE id = ? AND end_time IS NOT NULL
     `);
 
     return stmt.get(sessionId);
