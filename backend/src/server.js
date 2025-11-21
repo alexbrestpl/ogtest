@@ -149,14 +149,19 @@ app.post('/api/session/:id/focus-switch', (req, res) => {
 // POST /api/session-end - завершить сессию
 app.post('/api/session-end', async (req, res) => {
     try {
+        const sessionToken = req.headers['x-session-token'];
         const { sessionId, correctAnswers, wrongAnswers, topWrongQuestions } = req.body;
+
+        if (!sessionToken) {
+            return res.status(401).json({ error: 'Отсутствует токен сессии' });
+        }
 
         if (!sessionId || correctAnswers === undefined || wrongAnswers === undefined) {
             return res.status(400).json({ error: 'sessionId, correctAnswers и wrongAnswers обязательны' });
         }
 
-        // Завершаем сессию в БД
-        db.endSession(sessionId, correctAnswers, wrongAnswers);
+        // Завершаем сессию в БД (с проверкой токена)
+        db.endSession(sessionId, sessionToken, correctAnswers, wrongAnswers);
 
         // Получаем данные сессии
         const sessionData = db.getSessionStats(sessionId);
@@ -170,6 +175,9 @@ app.post('/api/session-end', async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error('Ошибка завершения сессии:', error);
+        if (error.message.includes('Недействительная') || error.message.includes('завершена')) {
+            return res.status(403).json({ error: error.message });
+        }
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });

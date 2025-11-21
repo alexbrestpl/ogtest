@@ -205,7 +205,7 @@ async function endBackendSession() {
             correctAnswers: correctAnswersCount,
             wrongAnswers: wrongAnswersCount,
             topWrongQuestions: topWrongQuestions
-        });
+        }, true); // Включаем токен сессии для аутентификации
 
         console.log('✅ Сессия завершена на backend');
     } catch (error) {

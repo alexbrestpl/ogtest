@@ -101,7 +101,20 @@ function createSession(userUuid, mode) {
 }
 
 // Завершить сессию
-function endSession(sessionId, correctAnswers, wrongAnswers) {
+function endSession(sessionId, sessionToken, correctAnswers, wrongAnswers) {
+    // Проверяем токен сессии
+    const session = db.prepare(`
+        SELECT * FROM sessions WHERE id = ? AND session_token = ?
+    `).get(sessionId, sessionToken);
+
+    if (!session) {
+        throw new Error('Недействительная сессия или токен');
+    }
+
+    if (session.end_time) {
+        throw new Error('Сессия уже завершена');
+    }
+
     const totalAnswers = correctAnswers + wrongAnswers;
     const percentage = totalAnswers > 0 ? (correctAnswers / totalAnswers) * 100 : 0;
 
@@ -111,10 +124,10 @@ function endSession(sessionId, correctAnswers, wrongAnswers) {
             correct_answers = ?,
             wrong_answers = ?,
             percentage = ?
-        WHERE id = ?
+        WHERE id = ? AND session_token = ?
     `);
 
-    return stmt.run(correctAnswers, wrongAnswers, percentage, sessionId);
+    return stmt.run(correctAnswers, wrongAnswers, percentage, sessionId, sessionToken);
 }
 
 // Записать ответ на вопрос
