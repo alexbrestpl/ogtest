@@ -6,7 +6,7 @@ const db = require('./config/database');
 const telegram = require('./services/telegram');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(express.json());

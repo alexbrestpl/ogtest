@@ -8,13 +8,13 @@ services:
     container_name: ogtest-backend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3001"
     env_file:
       - ./backend/.env
     volumes:
       - ./backend:/app
       - /app/node_modules
-      - ./backend/statistics.db:/app/statistics.db
+      - ./backend/src/config/statistics.db:/app/src/config/statistics.db
     environment:
       - NODE_ENV=production
     networks:

@@ -17,7 +17,7 @@ server {
 
     # Проксирование на Node.js приложение
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
 
         # WebSocket support (если понадобится в будущем)
@@ -42,7 +42,7 @@ server {
     # Статические файлы (опционально, для оптимизации)
     # Nginx может отдавать их напрямую без Node.js
     location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg)$ {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:3001;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
