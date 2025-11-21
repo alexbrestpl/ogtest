@@ -421,8 +421,8 @@ async function skipQuestion() {
         question_id: currentQuestion.question_number
     });
 
-    // Отправляем на сервер: пропуск = неправильный ответ (выбираем первый ID как "неправильный")
-    await submitAnswerToServer(currentQuestion.question_number, currentQuestion.answers[0].id);
+    // Отправляем на сервер: пропуск = null (гарантированно неправильный ответ)
+    await submitAnswerToServer(currentQuestion.question_number, null);
 
     saveSessionState();
     await nextQuestion();

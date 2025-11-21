@@ -315,7 +315,8 @@ function submitAnswer(sessionId, sessionToken, questionNumber, answerId) {
         throw new Error(`Вопрос ${questionNumber} не найден`);
     }
 
-    const isCorrect = questionData.correct_answer_id === answerId;
+    // Если answerId === null, это пропущенный вопрос (всегда неправильный)
+    const isCorrect = answerId !== null && questionData.correct_answer_id === answerId;
 
     // Логируем ответ
     logAnswer(sessionId, questionNumber, isCorrect);

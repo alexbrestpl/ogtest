@@ -105,10 +105,11 @@ app.post('/api/session/:id/submit-answer', (req, res) => {
             return res.status(401).json({ error: 'Отсутствует токен сессии' });
         }
 
-        if (!questionNumber || !answerId) {
-            return res.status(400).json({ error: 'questionNumber и answerId обязательны' });
+        if (!questionNumber) {
+            return res.status(400).json({ error: 'questionNumber обязателен' });
         }
 
+        // answerId может быть null для пропущенных вопросов
         const result = db.submitAnswer(sessionId, sessionToken, questionNumber, answerId);
 
         res.json({
