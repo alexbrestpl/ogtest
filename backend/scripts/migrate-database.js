@@ -6,7 +6,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const dbPath = path.join(__dirname, '..', 'config', 'statistics.db');
+const dbPath = path.join(__dirname, '..', 'src', 'config', 'statistics.db');
 const db = new Database(dbPath);
 
 console.log('🔄 Начинаю миграцию схемы базы данных...');
