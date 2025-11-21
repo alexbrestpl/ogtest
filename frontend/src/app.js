@@ -30,6 +30,7 @@ const continueTestBtn = document.getElementById('continueTestBtn');
 const restartBtn = document.getElementById('restartBtn');
 const homeBtn = document.getElementById('homeBtn');
 const infoBtn = document.getElementById('infoBtn');
+const statsBtn = document.getElementById('statsBtn');
 const backToHomeBtn = document.getElementById('backToHomeBtn');
 const headerTitle = document.getElementById('headerTitle');
 const progressBar = document.getElementById('progressBar');
@@ -748,6 +749,7 @@ continueTestBtn.addEventListener('click', continueTest);
 restartBtn.addEventListener('click', restartTest);
 homeBtn.addEventListener('click', goToStart);
 infoBtn.addEventListener('click', () => showScreen(infoScreen));
+statsBtn.addEventListener('click', () => window.location.href = '/stats');
 backToHomeBtn.addEventListener('click', goToStart);
 headerTitle.addEventListener('click', goToStart);
 

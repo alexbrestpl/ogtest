@@ -222,6 +222,11 @@ app.use('/api/*', (req, res) => {
     res.status(404).json({ error: 'API endpoint не найден' });
 });
 
+// Страница статистики
+app.get('/stats', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/stats.html'));
+});
+
 // Главная страница - отдаем index.html только для HTML запросов
 // Статические файлы уже обработаны express.static выше
 app.get('*', (req, res, next) => {
@@ -242,9 +247,9 @@ app.listen(PORT, () => {
     console.log(`🔧 Режим: ${isDevelopment ? 'разработка' : 'продакшн'}`);
 
     // Запускаем Telegram бота
-    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-        telegram.startPolling();
-    }
+    // if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+    //     telegram.startPolling();
+    // }
 });
 
 // Graceful shutdown

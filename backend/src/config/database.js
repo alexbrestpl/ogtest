@@ -168,14 +168,27 @@ function getOverallStats() {
     const avgPercentage = db.prepare('SELECT AVG(percentage) as avg FROM sessions WHERE end_time IS NOT NULL').get();
     stats.averagePercentage = avgPercentage.avg ? avgPercentage.avg.toFixed(2) : 0;
 
-    // Топ-10 самых сложных вопросов
+    // Топ-10 самых сложных вопросов с полными данными
     stats.topDifficultQuestions = db.prepare(`
-        SELECT question_id, total_shown, total_wrong, error_rate
-        FROM questions_stats
-        WHERE total_shown >= 5
-        ORDER BY error_rate DESC
+        SELECT
+            qs.question_id,
+            qs.total_shown,
+            qs.total_wrong,
+            qs.error_rate,
+            q.question_text,
+            q.answers,
+            q.correct_answer_id,
+            q.correct_answer_text,
+            q.document_link
+        FROM questions_stats qs
+        JOIN questions q ON qs.question_id = q.question_number
+        WHERE qs.total_shown >= 5
+        ORDER BY qs.error_rate DESC
         LIMIT 10
-    `).all();
+    `).all().map(q => ({
+        ...q,
+        answers: JSON.parse(q.answers)
+    }));
 
     return stats;
 }

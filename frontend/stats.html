@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статистика - Небезопасные грузы</title>
+    <link rel="icon" type="image/svg+xml" href="public/favicon.svg">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .stat-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .stat-value {
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1.1em;
+            color: #666;
+        }
+
+        .difficult-questions {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .difficult-questions h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .question-item {
+            padding: 25px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .question-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .question-rank {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .question-stats {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .error-rate {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .shown-count {
+            font-size: 0.9em;
+            color: #999;
+        }
+
+        .question-text {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .answers-list {
+            list-style: none;
+            margin-bottom: 15px;
+        }
+
+        .answer-item {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .answer-item.correct {
+            border-color: #2ecc71;
+            background: #e8f8f0;
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.5em;
+            padding: 60px 20px;
+        }
+
+        .error {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            padding: 12px 30px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .back-link:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: white;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 800px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .stat-value {
+                font-size: 2.5em;
+            }
+
+            .question-stats {
+                flex-direction: column;
+                gap: 5px;
+                align-items: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Статистика</h1>
+            <p class="subtitle">Небезопасные грузы</p>
+        </header>
+
+        <div id="loading" class="loading">
+            Загрузка статистики...
+        </div>
+
+        <div id="error" class="error" style="display: none;">
+            ⚠️ Ошибка загрузки статистики. Попробуйте обновить страницу.
+        </div>
+
+        <div id="content" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-value" id="totalUsers">0</div>
+                    <div class="stat-label">Уникальных пользователей</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-value" id="totalSessions">0</div>
+                    <div class="stat-label">Всего сессий</div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-value" id="avgPercentage">0%</div>
+                    <div class="stat-label">Средний результат</div>
+                </div>
+            </div>
+
+            <div class="difficult-questions">
+                <h2>🔥 Топ-5 самых сложных вопросов</h2>
+                <div id="difficultQuestions"></div>
+            </div>
+
+            <div style="text-align: center;">
+                <a href="/" class="back-link">← Вернуться к тесту</a>
+            </div>
+        </div>
+
+        <footer>
+            <p>Данные обновляются каждые 10 минут</p>
+        </footer>
+    </div>
+
+    <script>
+        // Загрузка статистики
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+
+                if (!response.ok) {
+                    throw new Error('Ошибка загрузки');
+                }
+
+                const data = await response.json();
+
+                // Отображаем данные
+                document.getElementById('totalUsers').textContent = data.totalUsers || 0;
+                document.getElementById('totalSessions').textContent = data.totalSessions || 0;
+                document.getElementById('avgPercentage').textContent = (data.averagePercentage || 0) + '%';
+
+                // Топ-5 сложных вопросов
+                const difficultQuestionsContainer = document.getElementById('difficultQuestions');
+                const top5 = (data.topDifficultQuestions || []).slice(0, 5);
+
+                if (top5.length === 0) {
+                    difficultQuestionsContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">Пока нет данных</p>';
+                } else {
+                    difficultQuestionsContainer.innerHTML = top5.map((q, index) => {
+                        // Формируем список ответов
+                        const answersHtml = q.answers.map((answer, ansIndex) => {
+                            const isCorrect = (ansIndex + 1) === q.correct_answer_id;
+                            const answerText = typeof answer === 'object' ? answer.text : answer;
+                            return `<li class="answer-item ${isCorrect ? 'correct' : ''}">${answerText}</li>`;
+                        }).join('');
+
+                        return `
+                            <div class="question-item">
+                                <div class="question-header">
+                                    <span class="question-rank">#${index + 1}</span>
+                                    <div class="question-stats">
+                                        <span class="error-rate">${q.error_rate.toFixed(1)}%</span>
+                                        <span class="shown-count">показан ${q.total_shown} раз</span>
+                                    </div>
+                                </div>
+                                <div class="question-text">${q.question_text}</div>
+                                <ul class="answers-list">${answersHtml}</ul>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // Показываем контент
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+
+            } catch (error) {
+                console.error('Ошибка загрузки статистики:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        // Загружаем при загрузке страницы
+        loadStats();
+
+        // Обновляем каждые 10 минут (600000 мс)
+        setInterval(loadStats, 600000);
+    </script>
+</body>
+</html>
